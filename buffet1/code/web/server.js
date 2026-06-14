@@ -6,6 +6,7 @@ import express from "express";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, "public", "data");
+const distDir = path.join(__dirname, "dist");
 const port = Number(process.env.PORT || 3001);
 const app = express();
 
@@ -92,28 +93,6 @@ function sendSse(res, payload) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
 }
 
-app.get("/", (req, res) => {
-  res.type("html").send(`<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <title>AI Buffett API</title>
-    <style>
-      body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; padding: 40px; line-height: 1.8; }
-      code { background: #f2f2f2; padding: 2px 6px; border-radius: 6px; }
-      a { color: #2563eb; }
-    </style>
-  </head>
-  <body>
-    <h1>AI 巴菲特后端已启动</h1>
-    <p>这是 API 后端，不是网页前端。</p>
-    <p>网页前端请打开：<code>http://localhost:5173</code></p>
-    <p>测试搜索接口：<a href="/api/search?q=安全边际">/api/search?q=安全边际</a></p>
-    <p>查看 OpenAPI：<a href="/openapi.yaml">/openapi.yaml</a></p>
-  </body>
-</html>`);
-});
-
 function publicPage(page) {
   return {
     title: page.title,
@@ -189,6 +168,31 @@ paths:
                     type: array
                     items:
                       type: object
+                      properties:
+                        title:
+                          type: string
+                        type:
+                          type: string
+                        typeLabel:
+                          type: string
+                        category:
+                          type: string
+                        date:
+                          type: string
+                        summary:
+                          type: string
+                        links:
+                          type: array
+                          items:
+                            type: string
+                        tags:
+                          type: array
+                          items:
+                            type: string
+                        path:
+                          type: string
+                        url:
+                          type: string
   /api/page:
     get:
       operationId: getKnowledgePage
@@ -207,6 +211,33 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  title:
+                    type: string
+                  type:
+                    type: string
+                  typeLabel:
+                    type: string
+                  category:
+                    type: string
+                  date:
+                    type: string
+                  summary:
+                    type: string
+                  links:
+                    type: array
+                    items:
+                      type: string
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  path:
+                    type: string
+                  url:
+                    type: string
+                  markdown:
+                    type: string
 `);
 });
 
@@ -270,6 +301,43 @@ app.post("/api/chat", async (req, res) => {
     res.end();
   }
 });
+
+async function distExists() {
+  try {
+    await fs.access(path.join(distDir, "index.html"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (await distExists()) {
+  app.use(express.static(distDir));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(distDir, "index.html"));
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.type("html").send(`<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>AI Buffett API</title>
+    <style>
+      body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; padding: 40px; line-height: 1.8; }
+      code { background: #f2f2f2; padding: 2px 6px; border-radius: 6px; }
+      a { color: #2563eb; }
+    </style>
+  </head>
+  <body>
+    <h1>AI 巴菲特后端已启动</h1>
+    <p>这是 API 后端。生产环境如已执行 <code>npm run build</code>，这里会显示前端网页。</p>
+    <p>测试搜索接口：<a href="/api/search?q=安全边际">/api/search?q=安全边际</a></p>
+    <p>查看 OpenAPI：<a href="/openapi.yaml">/openapi.yaml</a></p>
+  </body>
+</html>`);
+  });
+}
 
 await loadData();
 app.listen(port, () => {
